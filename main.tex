@@ -43,7 +43,7 @@ Note $X^? \defeq X \uplus \bot$, $X^\emptyset \defeq X \uplus \emptyset$
 	Exc & \small Exclusive ownership of a specific resources & \code{$\tau^?$} & \code{load}, \code{store} *\idx1 & \code{PointsTo}\\\hline
 	Ag & \small Multiple parties agree on the same value for a resource & $\tau$ & & \code{Agree} \\\hline
 	Frac & \small Allow partial (readonly) ownership of an object & $\tau \times (0,1]$& & \code{Frac} \\\hline
-	List & \small Ensure continuous memory allocation  & $(\mathbb N \finmap \tau) \times \mathbb N^?$ *\idx2 & \\\hline
+	List & \small Ensure continuous memory allocation  & $(\mathbb N \finmap \tau) \times \mathbb N^?$ *\idx2 &  & \small lift with index in-param *\idx4 \\\hline
 	OneShot & \small The program only has one go at something (eg. freeing memory) & Exc($\tau$) + Ag($\{\emptyset\}$) & \code{free} \\ \hline
 	PMap & \small Define memory as a map of address (a sort I) to value  & $(\text{I}\finmap \tau) \times \pset(I)^?$ *\idx3 & & \small lift with index in-param \\\hline
 	Product ($\times$) & Two simultaneous states, each being updated separately (eg. List) & $\tau_1 \times \tau_2$ & \small lift with \code{A1}, \code{A2}   \\\hline
@@ -56,5 +56,7 @@ Note $X^? \defeq X \uplus \bot$, $X^\emptyset \defeq X \uplus \emptyset$
 *\idx2 Full definition: $\left\{ (b, n^?) \in (\mathbb N \finmap \tau) \times \mathbb N^? ~|~ \text{dom}(b) \subseteq [0, n^?)  \right\}$
 
 *\idx3 Full definition: $\left\{ (h,d) ~|~ h\in (\text{I} \finmap \tau )\land d\in\pset(I)^?\land\text{dom}(h)^?\subseteq d\right\}$
+
+*\idx4 Is this correct? But then when we have eg. PMap(..., List(...)), do we need to provide two indices for access (address + offset) ? 
 
 \end{document}
