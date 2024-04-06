@@ -1,0 +1,60 @@
+\documentclass[,a4paper,oneside]{article}
+
+\usepackage{tabularx}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+
+\usepackage[a4paper,left=0.5in,right=1.1in,top=1in,bottom=1in]{geometry}
+
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\itl}[1]{{\it#1}}
+\newcommand{\defeq}{\stackrel{\text{def}}=}
+\newcommand{\finmap}{\stackrel{\itl{fin}}\rightharpoonup}
+\newcommand{\pset}{{\cal P}}
+\newcommand{\idx}[1]{${}^{#1}$}
+
+\renewcommand\tabularxcolumn[1]{m{#1}}% for vertical centering text in X column
+
+\title{MSc Project Notes}
+\author{Opale}
+
+\begin{document}
+
+\maketitle
+
+\section{Memory model constructor cheatsheet}
+
+In italic, ``primitives'', ie. types that aren't memory models.
+
+Note $X^? \defeq X \uplus \bot$, $X^\emptyset \defeq X \uplus \emptyset$
+
+\vspace{1cm}
+
+\begin{tabularx}{\textwidth}{l|l}
+	Language & Memory Model\\ \hline\hline
+	WISL & PMap(\itl{Loc}, OneShot(List(Exc(\itl{Val})))) \\ \hline
+	JSIL & PMap(\itl{Loc}, PMap(\itl{Str},Exc(\itl{Val$^\emptyset$})) $\times$ PMap(\itl{Loc},Ag(\itl{Val}))
+\end{tabularx}
+
+\vspace{1cm}
+
+\begin{tabularx}{\textwidth}{l|X|l|l|l}
+	Name & Purpose & Type & Actions & Predicates\\ \hline\hline
+	Exc & \small Exclusive ownership of a specific resources & \code{$\tau^?$} & \code{load}, \code{store} *\idx1 & \code{PointsTo}\\\hline
+	Ag & \small Multiple parties agree on the same value for a resource & $\tau$ & & \code{Agree} \\\hline
+	Frac & \small Allow partial (readonly) ownership of an object & $\tau \times (0,1]$& & \code{Frac} \\\hline
+	List & \small Ensure continuous memory allocation  & $(\mathbb N \finmap \tau) \times \mathbb N^?$ *\idx2 & \\\hline
+	OneShot & \small The program only has one go at something (eg. freeing memory) & Exc($\tau$) + Ag($\{\emptyset\}$) & \code{free} \\ \hline
+	PMap & \small Define memory as a map of address (a sort I) to value  & $(\text{I}\finmap \tau) \times \pset(I)^?$ *\idx3 & & \small lift with index in-param \\\hline
+	Product ($\times$) & Two simultaneous states, each being updated separately (eg. List) & $\tau_1 \times \tau_2$ & \small lift with \code{A1}, \code{A2}   \\\hline
+	Sum (+) & Either of two states existing (eg. OneShot) & $\tau_1 \uplus \tau_2$ & \small lift with \code{A1}, \code{A2}   \\\hline	
+\end{tabularx} 
+
+\vspace{1cm}
+*\idx1 Would we define \code{load} and \code{store} at this level, or at a more primitive ``Value'' memory model level?
+
+*\idx2 Full definition: $\left\{ (b, n^?) \in (\mathbb N \finmap \tau) \times \mathbb N^? ~|~ \text{dom}(b) \subseteq [0, n^?)  \right\}$
+
+*\idx3 Full definition: $\left\{ (h,d) ~|~ h\in (\text{I} \finmap \tau )\land d\in\pset(I)^?\land\text{dom}(h)^?\subseteq d\right\}$
+
+\end{document}
