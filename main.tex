@@ -3,6 +3,10 @@
 \usepackage{tabularx}
 \usepackage{amsmath}
 \usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{makecell}
+\usepackage{xltabular}
+\usepackage{xcolor}
 
 \usepackage[a4paper,left=0.5in,right=1.1in,top=1in,bottom=1in]{geometry}
 
@@ -11,7 +15,10 @@
 \newcommand{\defeq}{\stackrel{\text{def}}=}
 \newcommand{\finmap}{\stackrel{\itl{fin}}\rightharpoonup}
 \newcommand{\pset}{{\cal P}}
-\newcommand{\idx}[1]{${}^{#1}$}
+\newcommand{\idx}[1]{\ensuremath{{}^{#1}}}
+\newcommand{\mmdl}{\ensuremath{\mathbb S}}
+\newcommand{\nats}{\ensuremath{\mathbb N}}
+\newcommand{\rarr}{\ensuremath{\rightarrow}}
 
 \renewcommand\tabularxcolumn[1]{m{#1}}% for vertical centering text in X column
 
@@ -24,39 +31,130 @@
 
 \section{Memory model constructor cheatsheet}
 
-In italic, ``primitives'', ie. types that aren't memory models.
-
 Note $X^? \defeq X \uplus \bot$, $X^\emptyset \defeq X \uplus \emptyset$
 
-\vspace{1cm}
+\subsection{Examples per language}
 
 \begin{tabularx}{\textwidth}{l|l}
-	Language & Memory Model\\ \hline\hline
+	\thead{\bfseries Language} & \thead{\bfseries Memory Model}\\ \hline\hline
 	WISL & PMap(\itl{Loc}, OneShot(List(Exc(\itl{Val})))) \\ \hline
-	JSIL & PMap(\itl{Loc}, PMap(\itl{Str},Exc(\itl{Val$^\emptyset$})) $\times$ PMap(\itl{Loc},Ag(\itl{Val}))
+	JSIL & PMap(\itl{Loc}, PMap(\itl{Str},Exc(\itl{Val$^\emptyset$})) $\otimes$ PMap(\itl{Loc},Ag(\itl{Val}))
 \end{tabularx}
 
-\vspace{1cm}
+\subsection{State Models}
+
+Base building blocks for later transformers. They store values of type $\tau$, usually \itl{Value} or something derived from it. They all define a \code{load} and \code{store} action.
+
+\begin{tabularx}{\textwidth}{l|X|l|l}
+	\thead{\bfseries Name} & \thead{\bfseries Purpose} & \thead{\bfseries Type} & \thead{\bfseries Predicates}\\ \hline\hline
+	Exc & \small Exclusive ownership of a specific resources & \code{$\tau^?$} & \code{PointsTo}\\\hline
+	Ag & \small Multiple parties agree on the same value for a resource & $\tau$ & \code{Agree} \\\hline
+	Frac & \small Allow partial (readonly) ownership of an object & $\tau \times (0,1]$& \code{Frac} \\\hline
+\end{tabularx} 
+
+\subsection{State Model Transformers}
+
+State model transformers take one or more input state models \mmdl~(and an auxiliary sort I in the case of PMap), and result in a new state model. Here the ``Type'' column only specifies the type of the resulting memory model, the inputs are inferred. $\mmdl.\Sigma$ stands for the heap type of memory model \mmdl.
 
 \begin{tabularx}{\textwidth}{l|X|l|l|l}
-	Name & Purpose & Type & Actions & Predicates\\ \hline\hline
-	Exc & \small Exclusive ownership of a specific resources & \code{$\tau^?$} & \code{load}, \code{store} *\idx1 & \code{PointsTo}\\\hline
-	Ag & \small Multiple parties agree on the same value for a resource & $\tau$ & & \code{Agree} \\\hline
-	Frac & \small Allow partial (readonly) ownership of an object & $\tau \times (0,1]$& & \code{Frac} \\\hline
-	List & \small Ensure continuous memory allocation  & $(\mathbb N \finmap \tau) \times \mathbb N^?$ *\idx2 &  & \small lift with index in-param *\idx4 \\\hline
-	OneShot & \small The program only has one go at something (eg. freeing memory) & Exc($\tau$) + Ag($\{\emptyset\}$) & \code{free} \\ \hline
-	PMap & \small Define memory as a map of address (a sort I) to value  & $(\text{I}\finmap \tau) \times \pset(I)^?$ *\idx3 & & \small lift with index in-param \\\hline
-	Product ($\times$) & Two simultaneous states, each being updated separately (eg. List) & $\tau_1 \times \tau_2$ & \small lift with \code{A1}, \code{A2}   \\\hline
-	Sum (+) & Either of two states existing (eg. OneShot) & $\tau_1 \uplus \tau_2$ & \small lift with \code{A1}, \code{A2}   \\\hline	
+	\thead{\bfseries Name} & \thead{\bfseries Purpose} & \thead{\bfseries Type} & \thead{\bfseries Actions} & \thead{\bfseries Predicates}\\ \hline\hline
+	Product ($\otimes$) & Two simultaneous states, each being updated separately (eg. List) & $\mmdl_1.\Sigma \times \mmdl_2.\Sigma$ & \multicolumn{2}{l}{lift with \code{A1}, \code{A2}} \\\hline
+	Sum ($\oplus$) & Either of two states existing & $\mmdl_1.\Sigma \uplus \mmdl_2.\Sigma$ & \multicolumn{2}{l}{lift with \code{A1}, \code{A2}}\\\hline	
+	PMap & \small Define memory as a map of address (a sort~I) to value & $(\text{I}\finmap \mmdl.\Sigma) \times \pset(I)^?$ *\idx1 & \multicolumn{2}{l}{lift with index in-param} \\\hline
+	List & \small Ensure continuous memory allocation  & $(\nats \finmap \mmdl.\Sigma) \times \nats^?$ *\idx2 & \multicolumn{2}{l}{lift with index in-param} \\\hline
+	OneShot & \small The program only has one go at something (eg. freeing memory) & Exc($\mmdl.\Sigma$) $\oplus$ Exc($\{\varnothing\}$) & \code{free} \\ \hline
 \end{tabularx} 
 
 \vspace{1cm}
-*\idx1 Would we define \code{load} and \code{store} at this level, or at a more primitive ``Value'' memory model level?
 
-*\idx2 Full definition: $\left\{ (b, n^?) \in (\mathbb N \finmap \tau) \times \mathbb N^? ~|~ \text{dom}(b) \subseteq [0, n^?)  \right\}$
+*\idx1 Full definition: $\left\{ (h,d) \in (\text{I} \finmap \tau )\times \pset(I)^? ~|~ \text{dom}(h)^?\subseteq d\right\}$, with the heap $h$ and $d$ the domain set indicating the non-missing indices.
 
-*\idx3 Full definition: $\left\{ (h,d) ~|~ h\in (\text{I} \finmap \tau )\land d\in\pset(I)^?\land\text{dom}(h)^?\subseteq d\right\}$
 
-*\idx4 Is this correct? But then when we have eg. PMap(..., List(...)), do we need to provide two indices for access (address + offset) ? 
+*\idx2 Full definition: $\left\{ (b, n^?) \in (\mathbb N \finmap \tau) \times \mathbb N^? ~|~ \text{dom}(b) \subseteq [0, n^?)  \right\}$, with $b$ the block and $n$ the size of the block if known.
+
+\clearpage
+\section{\code{MonadicSMemory} Functions}
+
+\newcommand{\subcd}[1]{\scriptsize\color[HTML]{777777}\code{#1}}
+\newenvironment{subcdd}
+  {\par\scriptsize}
+  {\par\addvspace{\bigskipamount}}
+
+\newcommand{\rowS}[2]{
+    \makecell[l]{\code{#1}} & #2 \\\hline
+}
+\newcommand{\rowM}[3]{
+    \makecell[l]{
+      \vspace{-0.1cm}\code{#1}\\\subcd{#2}
+    } & #3 \\\hline}
+\newcommand{\rowL}[4]{
+    \makecell[l]{
+      \vspace{-0.1cm}\code{#1}\\
+      \vspace{-0.15cm}\subcd{#2}\\\subcd{#3}
+     } \par& #4 \\\hline}
+\newcommand{\rowXL}[5]{
+    \makecell[l]{
+      \vspace{-0.1cm}\code{#1}\\
+      \vspace{-0.15cm}\subcd{#2}\\\vspace{-0.15cm}\subcd{#3}\\\subcd{#4}
+     } & #5 \\\hline}
+\newcommand{\qstn}[1]{{\small\color{red}{#1}}}
+\newcommand{\unsure}{\qstn{(?)}~}
+
+\begin{xltabular}{\textwidth}{l|X}
+	\thead{\bfseries Name/Type} & \thead{\bfseries Description} \\\hline\hline
+	
+\rowS{type init\_data}{Data needed to initialise the memory model}
+\rowM{type vt}{= SVal.M.t}{Type of GIL Values - \qstn{Any reason for this to not always be SVal.M?}}
+\rowM{type st}{= SVal.SESubst.t}{Type of substitutions}
+\rowS{type c\_fix\_t}{How to fix missing errors}
+\rowS{type err\_t}{Errors encountered (missing, program errors, logical errors)}
+\rowS{type t}{State type}
+\rowM{type action\_ret}{= (t * vt list, err\_t) result}{Alias for return type of actions/consume}\hline
+\rowM{val init}{init\_data -> t}{Construct the state model \qstn{initdata obtained from ParserAndCompiler?}} 
+\rowM{val get\_init\_data}{t -> init\_data}{Returns the \code{init\_data} used to construct this memory model \qstn{What's the use? CTRL+F makes it seem it's never used}} 
+\rowM{val clear}{t -> t}{Returns an ``empty'' copy of the state \unsure} 
+\rowL{val execute\_action}{action\_name:string -> t -> vt list}{-> action\_ret Delayed.t}{Executes a GIL action with given parameters, returns a symbolic outcome} 
+\rowL{val consume}{core\_pred:string -> t -> vt list}{-> action\_ret Delayed.t}{Substract the state corresponding to the given core predicate, \code{vt list} being the in-params of the predicate} 
+\rowL{val produce}{core\_pred:string -> t -> vt list}{-> t Delayed.t}{Extend the state with the given core predicate -- \code{vt list} are the in-params \unsure of the predicate} 
+\rowM{val is\_overlapping\_asrt}{string -> bool}{\qstn{If the given assertion predicate name is used/overlaps/is needed by a state?}} 
+\rowM{val copy}{t -> t}{Produces a copy of the state (in case it is mutable)} 
+\rowM{val pp}{Format.formatter -> t -> unit}{?} 
+\rowM{val substitution\_in\_place}{st -> t -> t Delayed.t}{?} 
+\rowL{val clean\_up}{?keep:Expr.Set.t -> t ->}{Expr.Set.t * Expr.Set.t}{?} 
+\rowM{val lvars}{t -> Containers.SS.t}{?} 
+\rowM{val alocs}{t -> Containers.SS.t}{?} 
+\rowL{val assertions}{?to\_keep:Containers.SS.t -> t}{-> Asrt.t list}{?} 
+\rowM{val mem\_constraints}{t -> Formula.t list}{?} 
+\rowM{val pp\_c\_fix}{Format.formatter -> c\_fix\_t -> unit}{?} 
+\rowM{val get\_recovery\_tactic}{t -> err\_t -> vt Recovery\_tactic.t}{?} 
+\rowM{val pp\_err}{Format.formatter -> err\_t -> unit}{?} 
+\rowM{val get\_failing\_constraint}{err\_t -> Formula.t}{?} 
+\rowXL{val get\_fixes}{t -> PFS.t -> Type\_env.t -> err\_t}{-> (c\_fix\_t list * Formula.t list *}{(string * Type.t) list * Containers.SS.t) list}{?} 
+\rowM{val can\_fix}{err\_t -> bool}{?} 
+\rowL{val apply\_fix}{t -> c\_fix\_t}{-> (t, err\_t) result Delayed.t}{?} 
+\rowL{val pp\_by\_need}{Containers.SS.t -> Format.formatter}{-> t -> unit}{?} 
+\rowL{val get\_print\_info}{Containers.SS.t -> t}{-> Containers.SS.t * Containers.SS.t}{?} 
+\rowM{val sure\_is\_nonempty}{t -> bool}{?} 
+\rowL{val split\_further}{t -> string -> vt list -> err\_t}{-> (vt list list * vt list) option}{?} 
+
+\end{xltabular}
+
+\section{Mismatches}
+
+Differences between the theory and what is implemented in Gillian.
+
+\begin{tabularx}{\textwidth}{X|X}
+	\thead{\bfseries Theory} & \thead{\bfseries Gillian} \\ \hline\hline
+\code{val eval\_action :\newline ${\cal A}\rarr\Sigma\rarr \textrm{\it Val}$ list $\rarr ({\cal O}\times \textrm{\it Val} \times \Sigma)$ set}
+	& \small\code{val execute\_action :\newline
+    string $\rarr$ t $\rarr$ vt list $\rarr$ action\_ret Delayed.t}
+    with \code{action\_ret = (t * vt list, err\_t) result} (note \code{vt list}, rather than \code{vt})
+    \\\hline
+    \code{produce }$\sigma ~\delta ~\vec{v_i}~\vec{v_o} = \{ \sigma\cdot\sigma_\delta ~|~\sigma_\delta \vDash \left<\delta\right> (\vec{v_i}, \vec{v_o}) \}$, ie.\newline
+    \small\code{val produce :}\newline
+    \code{$\Sigma\rarr\Delta \rarr \textrm{\it Val}$ list $\rarr \textrm{\it Val}$ list $\rarr \Sigma$ list}
+    & \small\code{val produce :\newline core\_pred:string $\rarr$ t $\rarr$ vt list $\rarr$ t Delayed.t} (note there is only one \code{vt list} input, for $\vec{v_i}$)
+    
+\end{tabularx}
 
 \end{document}
