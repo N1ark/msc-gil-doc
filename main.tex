@@ -118,25 +118,24 @@ State model transformers take one or more input state models \mmdl~(and an auxil
 \rowL{val produce}{core\_pred:string -> t -> vt list}{-> t Delayed.t}{Extend the state with the given core predicate -- \code{vt list} are the in-params \unsure of the predicate} 
 \rowM{val is\_overlapping\_asrt}{string -> bool}{\qstn{If the given assertion predicate name is used/overlaps/is needed by a state?}} 
 \rowM{val copy}{t -> t}{Produces a copy of the state (in case it is mutable)} 
-\rowM{val pp}{Format.formatter -> t -> unit}{?} 
-\rowM{val substitution\_in\_place}{st -> t -> t Delayed.t}{?} 
-\rowL{val clean\_up}{?keep:Expr.Set.t -> t ->}{Expr.Set.t * Expr.Set.t}{?} 
-\rowM{val lvars}{t -> Containers.SS.t}{?} 
-\rowM{val alocs}{t -> Containers.SS.t}{?} 
-\rowL{val assertions}{?to\_keep:Containers.SS.t -> t}{-> Asrt.t list}{?} 
-\rowM{val mem\_constraints}{t -> Formula.t list}{?} 
-\rowM{val pp\_c\_fix}{Format.formatter -> c\_fix\_t -> unit}{?} 
-\rowM{val get\_recovery\_tactic}{t -> err\_t -> vt Recovery\_tactic.t}{?} 
-\rowM{val pp\_err}{Format.formatter -> err\_t -> unit}{?} 
-\rowM{val get\_failing\_constraint}{err\_t -> Formula.t}{?} 
-\rowXL{val get\_fixes}{t -> PFS.t -> Type\_env.t -> err\_t}{-> (c\_fix\_t list * Formula.t list *}{(string * Type.t) list * Containers.SS.t) list}{?} 
-\rowM{val can\_fix}{err\_t -> bool}{?} 
-\rowL{val apply\_fix}{t -> c\_fix\_t}{-> (t, err\_t) result Delayed.t}{?} 
-\rowL{val pp\_by\_need}{Containers.SS.t -> Format.formatter}{-> t -> unit}{?} 
-\rowL{val get\_print\_info}{Containers.SS.t -> t}{-> Containers.SS.t * Containers.SS.t}{?} 
-\rowM{val sure\_is\_nonempty}{t -> bool}{?} 
-\rowL{val split\_further}{t -> string -> vt list -> err\_t}{-> (vt list list * vt list) option}{?} 
-
+\rowM{val pp}{Format.formatter -> t -> unit}{Pretty print the state} 
+\rowM{val substitution\_in\_place}{st -> t -> t Delayed.t}{Applies substitution to the state, replacing variables with their values.} 
+\rowL{val clean\_up}{?keep:Expr.Set.t -> t}{-> Expr.Set.t * Expr.Set.t}{\qstn{Given a set of expressions that must be kept, and a state, returns a tuple (expressions that can be ignored, expressions to keep)? Can be under-approximated and always return (empty, keep)?}} 
+\rowM{val lvars}{t -> Containers.SS.t}{Returns all logical values in the state \unsure \qstn{What for?}} 
+\rowM{val alocs}{t -> Containers.SS.t}{Returns all the abstract locations in the state \qstn{Abstract location?}} 
+\rowL{val assertions}{?to\_keep:Containers.SS.t -> t}{-> Asrt.t list}{Make a list of logical assertions from the state ($\star$, predicates, formulae, typing...) \qstn{What is \code{to\_keep}?}} 
+\rowM{val mem\_constraints}{t -> Formula.t list}{\qstn{Well-formedness constraints on the memory? If so why does GillianC define it as always being \code{[]}?}} 
+\rowM{val pp\_c\_fix}{Format.formatter -> c\_fix\_t -> unit}{Pretty print fix value} 
+\rowM{val get\_recovery\_tactic}{t -> err\_t -> vt Recovery\_tactic.t}{Given a state and error, returns two lists of values that should be folded and unfolded respectively} 
+\rowM{val pp\_err}{Format.formatter -> err\_t -> unit}{Pretty print error} 
+\rowM{val get\_failing\_constraint}{err\_t -> Formula.t}{A formula that must be satisfied to avoid causing the given error \unsure} 
+\rowXL{val get\_fixes}{t -> PFS.t -> Type\_env.t -> err\_t}{-> (c\_fix\_t list * Formula.t list *}{(string * Type.t) list * Containers.SS.t) list}{\qstn{???}} 
+\rowM{val can\_fix}{err\_t -> bool}{If an error is fixable} 
+\rowL{val apply\_fix}{t -> c\_fix\_t}{-> (t, err\_t) result Delayed.t}{Apply a given fix to a state, possibly resulting in a new error} 
+\rowL{val pp\_by\_need}{Containers.SS.t -> Format.formatter}{-> t -> unit}{Pretty print the state \unsure} 
+\rowL{val get\_print\_info}{Containers.SS.t -> t}{-> Containers.SS.t * Containers.SS.t}{\qstn{Given ? and a state, returns a tuple of ? and ? to print}} 
+\rowM{val sure\_is\_nonempty}{t -> bool}{If this state fragment is empty - can be over-approximated to always be \code{false}} 
+\rowL{val split\_further}{t -> string -> vt list -> err\_t}{-> (vt list list * vt list) option}{If an error occurred when trying to split a core predicate, offers a new way of splitting it, with a list of ins and ways of learning the outs.} 
 \end{xltabular}
 
 \section{Mismatches}
