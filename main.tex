@@ -102,40 +102,40 @@ State model transformers take one or more input state models \mmdl~(and an auxil
 
 \begin{xltabular}{\textwidth}{l|X}
 	\thead{\bfseries Name/Type} & \thead{\bfseries Description} \\\hline\hline
-	
-\rowS{type init\_data}{Data needed to initialise the memory model}
-\rowM{type vt}{= SVal.M.t}{Type of GIL Values - \qstn{Any reason for this to not always be SVal.M?}}
+	   \endhead 
+\rowS{type init\_data}{Data needed to initialise the memory model (global context)}
+\rowM{type vt}{= SVal.M.t}{Type of GIL Values - always \code{SVal.M}}
 \rowM{type st}{= SVal.SESubst.t}{Type of substitutions}
 \rowS{type c\_fix\_t}{How to fix missing errors}
 \rowS{type err\_t}{Errors encountered (missing, program errors, logical errors)}
 \rowS{type t}{State type}
 \rowM{type action\_ret}{= (t * vt list, err\_t) result}{Alias for return type of actions/consume}\hline
-\rowM{val init}{init\_data -> t}{Construct the state model \qstn{initdata obtained from ParserAndCompiler?}} 
-\rowM{val get\_init\_data}{t -> init\_data}{Returns the \code{init\_data} used to construct this memory model \qstn{What's the use? CTRL+F makes it seem it's never used}} 
-\rowM{val clear}{t -> t}{Returns an ``empty'' copy of the state \unsure} 
+\rowM{val init}{init\_data -> t}{Construct the state model, with \code{init\_data} obtained from \code{ParserAndCompiler}} 
+\rowM{val get\_init\_data}{t -> init\_data}{Returns the \code{init\_data} used to construct this memory model, to avoid having the engine keep track of it} 
+\rowM{val clear}{t -> t}{Returns an ``empty'' copy of the state, ie. the state when it is constructed from \code{init\_data}} 
 \rowL{val execute\_action}{action\_name:string -> t -> vt list}{-> action\_ret Delayed.t}{Executes a GIL action with given parameters, returns a symbolic outcome} 
-\rowL{val consume}{core\_pred:string -> t -> vt list}{-> action\_ret Delayed.t}{Substract the state corresponding to the given core predicate, \code{vt list} being the in-params of the predicate} 
-\rowL{val produce}{core\_pred:string -> t -> vt list}{-> t Delayed.t}{Extend the state with the given core predicate -- \code{vt list} are the in-params \unsure of the predicate} 
-\rowM{val is\_overlapping\_asrt}{string -> bool}{\qstn{If the given assertion predicate name is used/overlaps/is needed by a state?}} 
+\rowL{val consume}{core\_pred:string -> t -> vt list}{-> action\_ret Delayed.t}{Substract the state corresponding to the given core predicate, the given \code{vt list} being the in-params of the predicate, and the \code{vt list} of the returned \code{action\_ret} being the out-params.} 
+\rowL{val produce}{core\_pred:string -> t -> vt list}{-> t Delayed.t}{Extend the state with the given core predicate -- \code{vt list} are the in-params AND the out-params of the predicate} 
+\rowM{val is\_overlapping\_asrt}{string -> bool}{Always false, to make GIllian handle overlapping equality stuff} 
 \rowM{val copy}{t -> t}{Produces a copy of the state (in case it is mutable)} 
 \rowM{val pp}{Format.formatter -> t -> unit}{Pretty print the state} 
-\rowM{val substitution\_in\_place}{st -> t -> t Delayed.t}{Applies substitution to the state, replacing variables with their values.} 
-\rowL{val clean\_up}{?keep:Expr.Set.t -> t}{-> Expr.Set.t * Expr.Set.t}{\qstn{Given a set of expressions that must be kept, and a state, returns a tuple (expressions that can be ignored, expressions to keep)? Can be under-approximated and always return (empty, keep)?}} 
-\rowM{val lvars}{t -> Containers.SS.t}{Returns all logical values in the state \unsure \qstn{What for?}} 
-\rowM{val alocs}{t -> Containers.SS.t}{Returns all the abstract locations in the state \qstn{Abstract location?}} 
-\rowL{val assertions}{?to\_keep:Containers.SS.t -> t}{-> Asrt.t list}{Make a list of logical assertions from the state ($\star$, predicates, formulae, typing...) \qstn{What is \code{to\_keep}?}} 
-\rowM{val mem\_constraints}{t -> Formula.t list}{\qstn{Well-formedness constraints on the memory? If so why does GillianC define it as always being \code{[]}?}} 
+\rowM{val substitution\_in\_place}{st -> t -> t Delayed.t}{Applies substitution to the state, replacing variables with their values. Not in place.} 
+\rowL{val clean\_up}{?keep:Expr.Set.t -> t}{-> Expr.Set.t * Expr.Set.t}{Ignore} 
+\rowM{val lvars}{t -> Containers.SS.t}{Returns all logical values in the state to ensure that simplifications don't remove variables we need} 
+\rowM{val alocs}{t -> Containers.SS.t}{Returns all the abstract locations in the state -- ignore for now or return recursively} 
+\rowL{val assertions}{?to\_keep:Containers.SS.t -> t}{-> Asrt.t list}{Make a list of logical assertions from the state ($\star$, predicates, formulae, typing...). Note sure what \code{to\_keep} is.} 
+\rowM{val mem\_constraints}{t -> Formula.t list}{Weird extra well-formedness assertions, that shouldn't matter because they should be handled in \code{produce} anyways.} 
 \rowM{val pp\_c\_fix}{Format.formatter -> c\_fix\_t -> unit}{Pretty print fix value} 
 \rowM{val get\_recovery\_tactic}{t -> err\_t -> vt Recovery\_tactic.t}{Given a state and error, returns two lists of values that should be folded and unfolded respectively} 
 \rowM{val pp\_err}{Format.formatter -> err\_t -> unit}{Pretty print error} 
 \rowM{val get\_failing\_constraint}{err\_t -> Formula.t}{A formula that must be satisfied to avoid causing the given error \unsure} 
 \rowXL{val get\_fixes}{t -> PFS.t -> Type\_env.t -> err\_t}{-> (c\_fix\_t list * Formula.t list *}{(string * Type.t) list * Containers.SS.t) list}{\qstn{???}} 
-\rowM{val can\_fix}{err\_t -> bool}{If an error is fixable} 
+\rowM{val can\_fix}{err\_t -> bool}{If an error is fixable (if missing)} 
 \rowL{val apply\_fix}{t -> c\_fix\_t}{-> (t, err\_t) result Delayed.t}{Apply a given fix to a state, possibly resulting in a new error} 
 \rowL{val pp\_by\_need}{Containers.SS.t -> Format.formatter}{-> t -> unit}{Pretty print the state \unsure} 
 \rowL{val get\_print\_info}{Containers.SS.t -> t}{-> Containers.SS.t * Containers.SS.t}{\qstn{Given ? and a state, returns a tuple of ? and ? to print}} 
 \rowM{val sure\_is\_nonempty}{t -> bool}{If this state fragment is empty - can be over-approximated to always be \code{false}} 
-\rowL{val split\_further}{t -> string -> vt list -> err\_t}{-> (vt list list * vt list) option}{If an error occurred when trying to split a core predicate, offers a new way of splitting it, with a list of ins and ways of learning the outs.} 
+\rowL{val split\_further}{t -> string -> vt list -> err\_t}{-> (vt list list * vt list) option}{If an error occurred when trying to split a core predicate, offers a new way of splitting it, with a list of ins and ways of learning the outs. Related to wands. Can always return None} 
 \end{xltabular}
 
 \section{Mismatches}
