@@ -265,7 +265,7 @@ First we may take a look at the rules consumers and producers must follow to be 
 
 The \code{produce} rule in particular states that the result of \code{produce} must be the given state extended by all disjoint resources that could be associated to a given core predicate.
 
-Freeable(X) being a derivative of a sum state model (in the form of X + Freed), and similar unsoundness being present in the sum state model, we may look at what property sum breaks to exhibit such unsoundness. First, we may have take a look at how sum is originally defined.
+Freeable(X) being a derivative of a sum state model (in the form of X $\oplus$ Freed), and similar unsoundness being present in the sum state model, we may look at what property sum breaks to exhibit such unsoundness. First, we may have take a look at how sum is originally defined.
 
 The sum $\mmdl.1 \oplus \mmdl.2$ is defined as \code{type $\Sigma$ = $\bot_\oplus$ | S1 of $\mathbb S_1.\Sigma$ | S2 of $\mathbb S_2.\Sigma$}, with the following composition rules and \code{produce} implementation (note we annotate the sum's $\bot$ element as $\bot_\oplus$ to later distinguish it from the $\bot$ of other state models):
 
