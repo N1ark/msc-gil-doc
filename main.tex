@@ -318,9 +318,12 @@ Let the current state be $\code{S1}~\bot_A$. As $\bot_A$ is the empty state for 
 As such, we would expect $\code{produce}~\code{S1}~\bot_A~\delta_B~\ins~\outs = \{\code{S2}~\sigma_B~|~\sigma_B\in \code{produce}~B.0~ \delta_B~\ins~\outs \}$, however that is not the case:
 
 \begin{align*}
-	\code{produce}~\code{S1}~\bot_A~\delta_B~\ins~\outs
-	&=\code{produce}~(\code{S1}~\bot_A\cdot\code{S2}~\sigma_B)~\delta_B~\ins~\outs&\text{from core predicates producers rule}\\
-	&=\emptyset &\text{(as }\code{S1}~\bot_A\cdot\code{S2}~\sigma_B\text{ is undefined)}
+	\code{produce}~(\code{S1}~\bot_A)~\delta_B~\ins~\outs
+	&=\{\code{S1}~\bot_A\cdot\code{S2}~\sigma_{\delta_B}~|~\sigma_{\delta_B}\vDash\corepred{$\delta$}{\ins}{\outs},\bot_A\#\sigma_{\delta_B}\}&\text{from core predicates producers rule}\\
+	&=\emptyset &\text{as }\code{S1}~\sigma_A\cdot\code{S2}~\sigma_B\text{ is undefined}\\~\\
+	~
+	\nexists \delta.~\code{produce}~\sigma~\delta~\ins~\outs\not\subseteq \{\sigma\}\\
+	\text{ie. }\forall \delta.~\code{produce}~\sigma~\delta~\ins~\outs\subset\{\sigma\}
 \end{align*}
 
 For the result of \code{produce} to match what's expected, new rules would need to be added to composition and produce to handle \code{S1~$\bot_A$} in the same way it handles $\bot_\oplus$. However there currently is no way of doing this, as the existence of an empty element in $A$ or $B$ is not exposed -- while some state models (like Exc) may have one, others (like Ag) may not.
