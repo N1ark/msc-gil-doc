@@ -4,6 +4,7 @@
 \usepackage{amsmath}
 \usepackage{amsfonts}
 \usepackage{amssymb}
+\usepackage{amsthm}
 \usepackage{makecell}
 \usepackage{xltabular}
 \usepackage{xcolor}
@@ -13,7 +14,8 @@
 	fontsize=\small,
 	baselinestretch=1,
 	mathescape=true,
-	escapeinside=!!
+	escapeinside=!!,
+	tabsize=4
 }
 
 
@@ -21,15 +23,21 @@
 
 \newcommand{\code}[1]{\texttt{#1}}
 \newcommand{\itl}[1]{{\it#1}}
-\newcommand{\defeq}{\stackrel{\text{def}}=}
-\newcommand{\finmap}{\stackrel{\itl{fin}}\rightharpoonup}
-\newcommand{\pset}{{\cal P}}
+\newcommand{\defeq}[0]{\stackrel{\text{def}}=}
+\newcommand{\finmap}[0]{\stackrel{\itl{fin}}\rightharpoonup}
+\newcommand{\pset}[0]{{\cal P}}
 \newcommand{\idx}[1]{\ensuremath{{}^{#1}}}
-\newcommand{\mmdl}{\ensuremath{\mathbb S}}
-\newcommand{\nats}{\ensuremath{\mathbb N}}
-\newcommand{\rarr}{\ensuremath{\rightarrow}}
+\newcommand{\mmdl}[0]{\ensuremath{\mathbb S}}
+\newcommand{\nats}[0]{\ensuremath{\mathbb N}}
+\newcommand{\rarr}[0]{\ensuremath{\rightarrow}}
+\newcommand{\st}[0]{\sigma}
+\newcommand{\evalsto}[3]{\ensuremath{p\vdash(#1)\Downarrow_\theta#2:(#3)}}
+\newcommand{\Ok}[0]{\code{Ok}}
+\newcommand{\Miss}[0]{\code{Miss}}
 
 \renewcommand\tabularxcolumn[1]{m{#1}}% for vertical centering text in X column
+
+\usepackage{myproofs}
 
 \title{MSc Project Notes}
 \author{Opale}
@@ -167,217 +175,125 @@ Differences between the theory and what is implemented in Gillian.
 
 \clearpage
 
-\section{Emptiness in state models}
+\section{Unsoundness in Sum}
 
-\subsection{Current State}
+\subsection{Unsoundness}
 
-There exists a source of unsoundness in the current definition of state models, related to the representation of empty states, as there may exist multiple different observably empty states, leading to composition rules being unsound if not accounted for.
+\newcommand{\sone}[0]{\code{S1 }}
+\newcommand{\stwo}[0]{\code{S2 }}
 
-To demonstrate this, we may consider the Freeable state. It is defined as:
+The sum state model transformer, $\mmdl_1 \oplus \mmdl_2$ with $\mmdl_1$ and $\mmdl_2$ two valid state models, is currently unsound. In particular, any action that allows flipping the sum from one side to the other is unsound, as it doesn't satisfy frame substraction. This is, for instance, the case with the \code{free} action of the Freeable state model, which is just a type of sum.
 
-\newcommand{\val}[0]{\textit{Val}~}
-
-\begin{align*}
-	\text{Freeable}(X) &\defeq \bot ~|~ \varnothing ~|~ \val X\\
-	\text{\underline{Freeable}}(X) &\defeq \varnothing ~|~\val X
-\end{align*}
-
-With composition:
-\begin{align*}
-	f \cdot \bot &= f\\
-	\bot \cdot f &= f\\
-	\val f_1 \cdot \val f_2 &= \val (f_1\cdot f_2)\\
-\end{align*}
-
-This forms a valid partially commutative monoid (PCM). We may now look at an example of using this state model that proves to be unsound. Assume the state model PMap(\nats, Freeable(Exc)), with PMap representing a partial map, that is initially with no mappings, []. We omit the domain set for brevity.
-
-\newcommand{\corepred}[3]{\ensuremath{\left<\texttt{#1}\right>(#2;#3)}}
-
-\begin{table}[h]\centering
-\begin{tabular}{l|l}
- State & Operation applied \\ \hline 
- $\bot$ & Initial State\\
- 0 $\mapsto \val a$ & Produce \corepred{PointsTo}{0}{a} \\
- 0 $\mapsto \val \bot$ & Consume \corepred{PointsTo}{0}{a} \\
- undefined! & Produce \corepred{Free}{0}{}
-\end{tabular}
-\end{table}
-
-This is, of course, unsound, as the state at the end should indeed be $0 \mapsto \varnothing$. This is due to the fact what is effectively an empty state, $\val \bot$, is different from the Freeable empty state, $\bot$, rendering the composition $\val \bot \cdot \varnothing$ undefined.  Note that consuming \code{PointsTo} doesn't result in a $0\mapsto \bot$ state, as PMap must pass consumption down, and so must Freeable, as neither are ``aware'' of the meaning of \code{PointsTo}.
-
-To fix this, Freeable would need to be able to know if its contents are observably empty after consuming a predicate, and if so become $\bot$. This seems to hint at a definition or property of our state models missing.
-
-This error can also be shown to exist in the implementation itself, by writing a specification with \code{True} as the precondition, \code{False} as the postcondition.
-
-\begin{minted}{text}
-spec free_cell(x)
-  [[ (x == #x) * <points_to>(#x;#anything) ]]
-  [[ (ret == null) * <freed>(#x;) ]]
-  normal
-proc free_cell(x) {
-  n := [free](x);
-  ret := null;
-  return
-};
-
-spec test_unsoundness()
-  [[ True ]]
-  [[ False ]]
-  normal
-proc test_unsoundness() {
-  x := [alloc]();
-  x := l-nth(x, 0i);
-  n := "free_cell"(x);
-  ret := null;
-  return
-};
-\end{minted}
-
-This GIL code is then succesfuly verified, with the following output.
-
-\begin{minted}{text}
-Parsing and compiling...
-Preprocessing...
-Obtaining specs to verify...
-Obtaining lemmas to verify...
-Obtained 2 symbolic tests in total
-Running symbolic tests: 0.002729
-Verifying one spec of procedure free_cell... s Success
-Verifying one spec of procedure test_unsoundness... Success
-All specs succeeded: 0.004729	
-\end{minted}
-
-
-\subsection{Proof of Unsoundness}
-
-First we may take a look at the rules consumers and producers must follow to be sound. Given a set of core predicates $(\Delta\ni\delta, \vDash)$:
-
-\newcommand{\ins}[0]{\vec{v_i}}
-\newcommand{\outs}[0]{\vec{v_o}}
-
-\begin{gather*}
-	\code{produce }\sigma ~\delta ~\ins~\outs = \{\sigma \cdot \sigma_\delta ~|~\sigma_\delta \vDash \corepred{$\delta$}{\ins}{\outs}, ~\sigma\#\sigma_\delta\}
-\end{gather*}
-\begin{gather*}
-	\sigma.\code{consume}_\delta(\ins)\rarr \code{Ok}:(\outs,\sigma')\\
-	\Longrightarrow\exists\sigma_\delta .\sigma=\sigma'\cdot \sigma_\delta\land \sigma_\delta\vDash\corepred{$\delta$}{\ins}{\outs}
-\end{gather*}
-
-The \code{produce} rule in particular states that the result of \code{produce} must be the given state extended by all disjoint resources that could be associated to a given core predicate.
-
-Freeable(X) being a derivative of a sum state model (in the form of X $\oplus$ Freed), and similar unsoundness being present in the sum state model, we may look at what property sum breaks to exhibit such unsoundness. First, we may have take a look at how sum is originally defined.
-
-The sum $\mmdl.1 \oplus \mmdl.2$ is defined as \code{type $\Sigma$ = $\bot_\oplus$ | S1 of $\mathbb S_1.\Sigma$ | S2 of $\mathbb S_2.\Sigma$}, with the following composition rules and \code{produce} implementation (note we annotate the sum's $\bot$ element as $\bot_\oplus$ to later distinguish it from the $\bot$ of other state models):
+The sum state model is defined as $(\mmdl_1 \oplus \mmdl_2).\Sigma \defeq \code{| }\bot \code{ | S1 } \mmdl_1.\Sigma \code{ | S2 } \mmdl_2.\Sigma$, and composition is defined as:
 
 \begin{align*}
-	\sigma \cdot \bot_\oplus=\bot_\oplus\cdot\sigma&=\sigma\\
-	(\code{S}_1~\sigma_1)\cdot(\code S_1~\sigma_1') &= \code S_1~(\sigma_1\cdot \sigma_1')\\
-	(\code{S}_2~\sigma_2)\cdot(\code S_2~\sigma_2') &= \code S_2~(\sigma_2\cdot \sigma_2')\\
+	\sigma \cdot \bot &= \sigma\\
+	\bot \cdot \sigma &= \sigma\\
+	(\sone\st) \cdot (\sone\st') &= \sone(\st\cdot\st')\\
+	(\stwo\st) \cdot (\stwo\st') &= \stwo(\st\cdot\st')\\
 	\text{undefined}&\text{ otherwise}
 \end{align*}
 
+We also remind the frame substraction property, defined as:
 
-\begin{minted}{ocaml}
-produce !$\sigma$! !$\delta$! !$\ins$! !$\outs$! =
-    match !$\sigma$!, !$\delta$! with
-    | S1 !$\sigma_1$!, P1 !$\delta_1$! -> 
-        let* !$\delta_1'$! = produce !$\sigma_1$! !$\delta_1$! !$\ins$! !$\outs$! in
-        S1 !$\delta_1'$!
-    | !$\bot_\oplus$!, P1 !$\delta_1$! ->
-    	let* !$\delta_1'$! = produce !$\mmdl_1.0$! !$\delta_1$! !$\ins$! !$\outs$! in
-        S1 !$\delta_1'$!
-    | S2 !$\sigma_2$!, P2 !$\delta_2$! -> 
-        let* !$\delta_2'$! = produce !$\sigma_2$! !$\delta_2$! !$\ins$! !$\outs$! in
-        S2 !$\delta_2'$!
-    | !$\bot_\oplus$!, P2 !$\delta_2$! -> 
-        let* !$\delta_2'$! = produce !$\mmdl_2.0$! !$\delta_2$! !$\ins$! !$\outs$! in
-        S2 !$\delta_2'$!
-    | _, _ -> vanish
-\end{minted}
-
-This function simply dispatches the predicate to the corresponding state model, default to the relevant empty state if needed, and vanishes if a mismatch occurs (for either \code{S1 $\sigma_1$, P2 $\delta_2$} or \code{S2 $\sigma_2$, P1 $\delta_1$}).
-
-Now, let there be a state model $A$ that defines a bottom element $\bot_A$, such that $\forall \sigma.~\sigma \cdot\bot_A = \sigma$, and a second state model $B$. Given the state model $A\oplus B$, and the above implementation of \code{produce}, we get the following results:
-
-\begin{align}
-	\code{produce}~\sigma~\delta~\ins~\outs = \begin{cases}
-		\code{produce}~\sigma_A~\delta_A~\ins~\outs 
-			& \text{if }\delta=\code{P1}~\delta_A\land\sigma=\code{S1}~\sigma_A\\
-		\code{produce}~A.0~\delta_A~\ins~\outs 
-			& \text{if }\delta=\code{P1}~\delta_A\land\sigma=\bot_\oplus\\
-		\code{produce}~\sigma_B~\delta_B~\ins~\outs 
-			& \text{if }\delta=\code{P2}~\delta_B\land\sigma=\code{S2}~\sigma_B\\
-		\code{produce}~B.0~\delta_B~\ins~\outs 
-			& \text{if }\delta=\code{P2}~\delta_B\land\sigma=\bot_\oplus\\
-		\emptyset & \text{otherwise}
-	\end{cases}
-\end{align}
-
-Let the current state be $\code{S1}~\bot_A$. As $\bot_A$ is the empty state for the $A$ memory model, it is disjoint from any other state. Given a core predicate $\delta_B$ and its ins and outs, there may exist a state $\sigma_B$ such that $\sigma_B\vDash \corepred{$\delta_B$}{\ins}{\outs}$ and we know that $\bot_A \# \sigma_B$. 
-
-As such, we would expect $\code{produce}~\code{S1}~\bot_A~\delta_B~\ins~\outs = \{\code{S2}~\sigma_B~|~\sigma_B\in \code{produce}~B.0~ \delta_B~\ins~\outs \}$, however that is not the case:
 
 \begin{align*}
-	\code{produce}~(\code{S1}~\bot_A)~\delta_B~\ins~\outs
-	&=\{\code{S1}~\bot_A\cdot\code{S2}~\sigma_{\delta_B}~|~\sigma_{\delta_B}\vDash\corepred{$\delta$}{\ins}{\outs},\bot_A\#\sigma_{\delta_B}\}&\text{from core predicates producers rule}\\
-	&=\emptyset &\text{as }\code{S1}~\sigma_A\cdot\code{S2}~\sigma_B\text{ is undefined}\\~\\
-	~
-	\nexists \delta.~\code{produce}~\sigma~\delta~\ins~\outs\not\subseteq \{\sigma\}\\
-	\text{ie. }\forall \delta.~\code{produce}~\sigma~\delta~\ins~\outs\subset\{\sigma\}
+	&\evalsto{\st\cdot\st_f,e}{o}{\st',v}\Longrightarrow\\
+	&\quad(\exists o',v',\st''.~\evalsto{\st,e}{o'}{\st'',v'}~\land\\
+	&\qquad(o'\neq \Miss \Rightarrow \st'=\st''\cdot\st_f\land o=o'\land v=v'))
 \end{align*}
 
-For the result of \code{produce} to match what's expected, new rules would need to be added to composition and produce to handle \code{S1~$\bot_A$} in the same way it handles $\bot_\oplus$. However there currently is no way of doing this, as the existence of an empty element in $A$ or $B$ is not exposed -- while some state models (like Exc) may have one, others (like Ag) may not.
+\newcommand{\proofref}[1]{\textbf{\cal(#1)}}
+\newcommand{\proofitem}[1]{\item\textbf{\cal(#1)}~}
 
-\subsection{Sound Emptiness}
+\begin{proof}
 
-A fix to this is to define a ``global'' emptiness, that replaces the different ``local'' empty states each state model may define. Consuming a predicate, or executing an action, may result in a new state {\it or} a global $\bot$. This forces state model transformers to handle such empty states, and ensures a state becoming empty deep within a now-observably-empty construction will naturally unwrap into a shallow empty. We also lift the composition operation defined by state models to handle $\bot$: $a \cdot \bot = \bot \cdot a = a$.
+\pfprop{Sum actions that swap sides are not frame preserving}
 
-A side-effect of this is that a non-$\bot$ state is never considered observably-empty, as otherwise it would be $\bot$ -- this allows us to remove the \code{is\_empty} function that was used for some optimisations, as it is sufficient to compare a given state with $\bot$.
-
-An advantage of this approach is that lifting a full state model to a complete state model doesn't require anything (aside from handling $\bot$ in \code{produce} and \code{consume}), as the empty compositional state is already added!
-
-We now redefine some of the constructs used in the engine according to this new definition.
-
-\newcommand{\vallist}[0]{\textit{Val}~\code{list}}
-
-\begin{gather*}
-	\Sigma^? \defeq \Sigma \uplus \bot\\
-	\code{consume}:\Sigma \rarr \Delta \rarr \vallist \rarr (\mathcal O^+_l \times \vallist \times \Sigma^?) \\
-	\code{produce}:\Sigma^? \rarr \Delta \rarr \vallist \rarr \vallist \rarr \Sigma~\code{set}\\
-	\code{eval\_action}: {\cal A} \rarr \Sigma^? \rarr \vallist \rarr (\mathcal O^+_l \times \vallist \times \Sigma^?)
-\end{gather*}
-
-A consideration with this is that \code{consume} only works on non-$\bot$ elements, as no predicate is satisfied by the empty state (not sure about this). For produce however, a predicate can be produced from the absence of state.
-
-We may now redefine some of the state models with this new idea.
-
-\subsubsection{State Sum}
-
-A state sum $\mathbb S_1 \oplus \mathbb S_2$ is now defined as \code{type $\Sigma$ = S1 of $\mathbb S_1.\Sigma$ | S2 of $\mathbb S_2.\Sigma$}. We define composition and \code{produce} as follows:
-
-\begin{align*}
-	(\code{S1 }\sigma)\cdot(\code{S1 }\sigma') &= \code{S1 }(\sigma\cdot\sigma')\\
-	(\code{S2 }\sigma)\cdot(\code{S2 }\sigma') &= \code{S2 }(\sigma\cdot\sigma')\\
-	\text{undefined}&\text{ otherwise}
-\end{align*}
+Assuming 
+\begin{hypvlist}
+\hypvitem{pcm1} $\mmdl_1$ is a well formed PCM, $\mmdl_1 \defeq (\Sigma_1, 0_1, \cdot)$
+\hypvitem{pcm2} $\mmdl_2$ is a well formed PCM, $\mmdl_2 \defeq (\Sigma_2, 0_2, \cdot)$
+\hypvitem{swap} There is an action \code{swap} that accepts no parameters and that, for a state \code{S1 $\st$} or \code{S2 $\st$}, converts it to \code{S2 $\st_2$} or \code{S1 $\st_1$} respectively, with $\st_1$ and $\st_2$ target states of $\mmdl_1$ and $\mmdl_2$. It uses a function ${\code{is\_fully\_owned} : \Sigma\rarr \code{bool}}$ that returns \code{true} if and only if $\st$ is part of $\underline\Sigma$. It is defined as: 
 
 \begin{minted}{ocaml}
-produce !$\sigma^?$! !$\delta$! !$\ins$! !$\outs$! =
-    match !$\sigma^?$!, !$\delta$! with
-    | S1 !$\sigma_1$!, P1 !$\delta_1$! -> 
-        let* !$\delta_1'$! = produce !$\sigma_1$! !$\delta_1$! !$\ins$! !$\outs$! in
-        S1 !$\delta_1'$!
-    | !$\bot$!, P1 !$\delta_1$! ->
-    	let* !$\delta_1'$! = produce !$\mmdl_1.0$! !$\delta_1$! !$\ins$! !$\outs$! in
-        S1 !$\delta_1'$!
-    | S2 !$\sigma_2$!, P2 !$\delta_2$! -> 
-        let* !$\delta_2'$! = produce !$\sigma_2$! !$\delta_2$! !$\ins$! !$\outs$! in
-        S2 !$\delta_2'$!
-    | !$\bot$!, P2 !$\delta_2$! -> 
-        let* !$\delta_2'$! = produce !$\mmdl_2.0$! !$\delta_2$! !$\ins$! !$\outs$! in
-        S2 !$\delta_2'$!
-    | _, _ -> vanish
+let swap !$\st$! =
+	match !$\st$! with
+	| S1 !$\st$! when is_fully_owned !$\st$! -> ok ((), S2 !$\st_2$!)
+	| S2 !$\st$! when is_fully_owned !$\st$! -> ok ((), S1 !$\st_1$!)
+	| _ -> miss (MissingState, !$\st$!)
 \end{minted}
+\end{hypvlist}
+	
+We want to proove frame substraction does not hold with action \code{swap}.
+\begin{description}
+	\proofitem{H2} From \proofref{P1} and per definition of sum composition, we have $(\sone\st) \cdot (\sone0_1) = \sone\st$
+	\proofitem{H3} Per \proofref{P3} and \proofref{H2}, $\evalsto{(\sone\st) \cdot (\sone\bot_1), \code{swap}~[]}{\Ok}{\stwo\st_2, []}$
+	\item Per \proofref{H1} and \proofref{H3}:
+		\proofitem{H4}$\exists o',v',\st''.~\evalsto{(\sone\st),\code{swap}~[]}{o'}{\st'',v'}$, and
+		\proofitem{H5}$o'\neq\Miss\Rightarrow \stwo\st_2=\st''\cdot\sone0_1\land \Ok=o'\land []=v'$
+	\proofitem{H6} Per \proofref{P3} and \proofref{H4}, we have $o'=\Ok$, $\st''=\stwo{\st_2}$ and $v'=[]$
+	\proofitem{H7} Per \proofref{H5} and \proofref{H6}, we thus have $\stwo\st_2 = (\stwo\st_2)\cdot(\sone0_1)$
+	\proofitem{H8} However, per definition of sum composition, $(\stwo\st_2)\cdot(\sone0_1)$ is undefined, thus $(\stwo\st_2)\cdot(\sone0_1) \neq \stwo\st_2$. Our assumption \proofref{H1} is thus incorrect -- frame substraction does not hold for \code{swap}
+\end{description}
+\end{proof}
+
+\subsection{Sound Sum}
+
+To define a sound version of sum, we thus need to remove the $0$ element of both sides from the allowed states, resulting in $(\mmdl_1 \oplus \mmdl_2).\Sigma \defeq \code{| }\bot \code{ | S1 } (\mmdl_1.\Sigma~ \backslash \{ 0_1\}) \code{ | S2 } (\mmdl_2.\Sigma~ \backslash \{0_2\})$. This ensure the states $\sone0_1$ and $\stwo0_2$ aren't allowed, avoiding the problem in frame substraction. Additionally, both sides of the sum must also provide a $\code{is\_full\_owned} : \Sigma \rarr \code{bool}$ function, that tests if the state is also part of $\underline\Sigma$.
+
+\begin{proof}$ $\newline
+	\textbf{Given } \begin{description}
+		\proofitem{P1} $\mmdl_1$ is a well formed PCM, $\mmdl_1 \defeq (\Sigma_1, 0_1, \cdot)$
+		\proofitem{P2} $\mmdl_2$ is a well formed PCM, $\mmdl_2 \defeq (\Sigma_2, 0_2, \cdot)$
+		\proofitem{P3} There is an action \code{swap} that accepts no parameters and that, for a state \code{S1 $\st$} or \code{S2 $\st$}, converts it to \code{S2 $\st_2$} or \code{S1 $\st_1$} respectively, with $\st_1$ and $\st_2$ target states of $\mmdl_1$ and $\mmdl_2$. It uses a function ${\code{is\_fully\_owned} : \Sigma\rarr \code{bool}}$ that returns \code{true} if and only if $\st$ is part of $\underline\Sigma$. It is defined as: 
+\begin{minted}{ocaml}
+let swap !$\st$! =
+	match !$\st$! with
+	| S1 !$\st$! when is_fully_owned !$\st$! -> ok ((), S2 !$\st_2$!)
+	| S2 !$\st$! when is_fully_owned !$\st$! -> ok ((), S1 !$\st_1$!)
+	| _ -> miss (MissingState, !$\st$!)
+\end{minted}
+\end{description}
+
+\textbf{Case $\sone\st$, $\sone\st'$}
+
+\begin{description}
+	\proofitem{H1} Per definition of sum composition, we have $(\sone\st)\cdot(\sone\st') = \sone(\st\cdot\st')$.
+	\proofitem{H2A} If $\code{is\_fully\_owned } \st\cdot\st' = \code{true}$, then as per \proofref{P3} and \proofref{H1}, ${\evalsto{(\sone\st)\cdot(\sone\st'), \code{swap }[]}{\Ok}{\stwo\st_2,[]}}$
+	\proofitem{H2B} Per the definition of sum, $\sone0_1$ is not allowed, thus per inextensibility of full states if ${\code{is\_fully\_owned }\st\cdot\st' = \code{true}}$ then $\code{is\_fully\_owned }\st=\code{false}$.
+	\proofitem{H2C} Per \proofref{H2B} and \proofref{P3}, we have $\evalsto{\sone\st, \code{swap }[]}{\Miss}{\sone\st, []}$. The outcome is \Miss, thus frame substraction is satisfied.
+	\proofitem{H3A} If $\code{is\_fully\_owned } \st\cdot\st' = \code{false}$, then as per \proofref{P3} and \proofref{H1}, \\$\evalsto{(\sone\st)\cdot(\sone\st'), \code{swap }[]}{\Miss}{(\sone\st)\cdot(\sone\st'),[]}$
+	\proofitem{H3B} Per \proofref{H3A} it must follow that $\code{is\_fully\_owned } \st = \code{false}$
+	\proofitem{H3C} Per \proofref{H3B} and \proofref{P3}, we have $\evalsto{\sone\st, \code{swap }[]}{\Miss}{\sone\st, []}$. The outcome is \Miss, thus frame substraction is satisfied.
+\end{description}
+
+\textbf{Case $\sone\st$, $\stwo\st'$}
+\begin{description}
+	\proofitem{H1} Per definition of sum composition, $\sone\st \cdot\stwo\st'$ is undefined, $\evalsto{\sone\st \cdot\stwo\st',\code{swap }[]}{o}{\st',v}$ is thus false and frame substraction is satified.
+\end{description}
+
+\textbf{Case $\sone\st$, $\bot$}
+
+\begin{description}
+	\proofitem{H1} Per definition of sum composition, $\sone\st \cdot \bot = \sone\st$
+	\proofitem{H2} Per \proofref{H1}, $\evalsto{\sone\st\cdot\bot,\code{swap }[]}{o}{\st',v} \iff \evalsto{\sone\st,\code{swap }[]}{o}{\st',v}$, frame substraction is satisfied.
+\end{description}
+
+\textbf{Cases $\stwo\st$ and $\sone\st'$, $\stwo\st'$, $\bot$}
+\begin{description}
+	\item These cases can be proven analogously to the previous ones.
+\end{description}
+
+\textbf{Cases $\bot$ and $\st$}
+
+\begin{description}
+	\proofitem{H1} Per definition of sum composition, $\bot\cdot\st=\st$, which is always defined.
+	\proofitem{H2} Per \proofref{P3}, $\evalsto{\bot, \code{swap }[]}{\Miss}{\bot, v}$
+	\proofitem{H3} Per \proofref{H1} and \proofref{H2}, frame substraction is thus satisfied.
+\end{description}
+
+\end{proof}
 
 
 \end{document}
