@@ -34,6 +34,9 @@
 \newcommand{\evalsto}[3]{\ensuremath{p\vdash(#1)\Downarrow_\theta#2:(#3)}}
 \newcommand{\Ok}[0]{\code{Ok}}
 \newcommand{\Miss}[0]{\code{Miss}}
+\newcommand{\bools}[0]{\mathbb{B}}
+\newcommand{\vtrue}[0]{\texttt{true}}
+\newcommand{\vfalse}[0]{\texttt{false}}
 
 \renewcommand\tabularxcolumn[1]{m{#1}}% for vertical centering text in X column
 
@@ -151,7 +154,7 @@ State model transformers take one or more input state models \mmdl~(and an auxil
 \rowL{val apply\_fix}{t -> c\_fix\_t}{-> (t, err\_t) result Delayed.t}{Apply a given fix to a state, possibly resulting in a new error} 
 \rowL{val pp\_by\_need}{Containers.SS.t -> Format.formatter}{-> t -> unit}{Pretty print the state \unsure} 
 \rowL{val get\_print\_info}{Containers.SS.t -> t}{-> Containers.SS.t * Containers.SS.t}{\qstn{Given ? and a state, returns a tuple of ? and ? to print}} 
-\rowM{val sure\_is\_nonempty}{t -> bool}{If this state fragment is empty - can be over-approximated to always be \code{false}} 
+\rowM{val sure\_is\_nonempty}{t -> bool}{If this state fragment is empty - can be over-approximated to always be \vfalse} 
 \rowL{val split\_further}{t -> string -> vt list -> err\_t}{-> (vt list list * vt list) option}{If an error occurred when trying to split a core predicate, offers a new way of splitting it, with a list of ins and ways of learning the outs. Related to wands. Can always return None} 
 \end{xltabular}
 
@@ -179,8 +182,8 @@ Differences between the theory and what is implemented in Gillian.
 
 \subsection{Unsoundness}
 
-\newcommand{\sone}[0]{\code{S1 }}
-\newcommand{\stwo}[0]{\code{S2 }}
+\newcommand{\sone}[0]{\code{S1}~}
+\newcommand{\stwo}[0]{\code{S2}~}
 
 The sum state model transformer, $\mmdl_1 \oplus \mmdl_2$ with $\mmdl_1$ and $\mmdl_2$ two valid state models, is currently unsound. In particular, any action that allows flipping the sum from one side to the other is unsound, as it doesn't satisfy frame substraction. This is, for instance, the case with the \code{free} action of the Freeable state model, which is just a type of sum.
 
@@ -203,8 +206,7 @@ We also remind the frame substraction property, defined as:
 	&\qquad(o'\neq \Miss \Rightarrow \st'=\st''\cdot\st_f\land o=o'\land v=v'))
 \end{align*}
 
-\newcommand{\proofref}[1]{\textbf{\cal(#1)}}
-\newcommand{\proofitem}[1]{\item\textbf{\cal(#1)}~}
+\newcommand{\swap}[0]{\code{swap}}
 
 \begin{proof}
 
@@ -212,86 +214,86 @@ We also remind the frame substraction property, defined as:
 
 Assuming 
 \begin{hypvlist}
-\hypvitem{pcm1} $\mmdl_1$ is a well formed PCM, $\mmdl_1 \defeq (\Sigma_1, 0_1, \cdot)$
+\hypvitem{pcm} $\mmdl_1$ is a well formed PCM, $\mmdl_1 \defeq (\Sigma_1, 0_1, \cdot)$
 \hypvitem{pcm2} $\mmdl_2$ is a well formed PCM, $\mmdl_2 \defeq (\Sigma_2, 0_2, \cdot)$
-\hypvitem{swap} There is an action \code{swap} that accepts no parameters and that, for a state \code{S1 $\st$} or \code{S2 $\st$}, converts it to \code{S2 $\st_2$} or \code{S1 $\st_1$} respectively, with $\st_1$ and $\st_2$ target states of $\mmdl_1$ and $\mmdl_2$. It uses a function ${\code{is\_fully\_owned} : \Sigma\rarr \code{bool}}$ that returns \code{true} if and only if $\st$ is part of $\underline\Sigma$. It is defined as: 
+\hypvitem{swap} There is an action \swap{} that accepts no parameters and that, for a state \code{S1 $\st$} or \code{S2 $\st$}, converts it to \code{S2 $\st_2$} or \code{S1 $\st_1$} respectively, with $\st_1$ and $\st_2$ target states of $\mmdl_1$ and $\mmdl_2$. It uses a function ${\code{is\_exclusively\_owned} : \Sigma\rarr \bools}$ that returns \vtrue{} if and only if no other resource can interfere with the current state. It is defined as: 
 
 \begin{minted}{ocaml}
 let swap !$\st$! =
 	match !$\st$! with
-	| S1 !$\st$! when is_fully_owned !$\st$! -> ok ((), S2 !$\st_2$!)
-	| S2 !$\st$! when is_fully_owned !$\st$! -> ok ((), S1 !$\st_1$!)
+	| S1 !$\st$! when is_exclusively_owned !$\st$! -> ok ((), S2 !$\st_2$!)
+	| S2 !$\st$! when is_exclusively_owned !$\st$! -> ok ((), S1 !$\st_1$!)
 	| _ -> miss (MissingState, !$\st$!)
 \end{minted}
 \end{hypvlist}
 	
-We want to proove frame substraction does not hold with action \code{swap}.
-\begin{description}
-	\proofitem{H2} From \proofref{P1} and per definition of sum composition, we have $(\sone\st) \cdot (\sone0_1) = \sone\st$
-	\proofitem{H3} Per \proofref{P3} and \proofref{H2}, $\evalsto{(\sone\st) \cdot (\sone\bot_1), \code{swap}~[]}{\Ok}{\stwo\st_2, []}$
-	\item Per \proofref{H1} and \proofref{H3}:
-		\proofitem{H4}$\exists o',v',\st''.~\evalsto{(\sone\st),\code{swap}~[]}{o'}{\st'',v'}$, and
-		\proofitem{H5}$o'\neq\Miss\Rightarrow \stwo\st_2=\st''\cdot\sone0_1\land \Ok=o'\land []=v'$
-	\proofitem{H6} Per \proofref{P3} and \proofref{H4}, we have $o'=\Ok$, $\st''=\stwo{\st_2}$ and $v'=[]$
-	\proofitem{H7} Per \proofref{H5} and \proofref{H6}, we thus have $\stwo\st_2 = (\stwo\st_2)\cdot(\sone0_1)$
-	\proofitem{H8} However, per definition of sum composition, $(\stwo\st_2)\cdot(\sone0_1)$ is undefined, thus $(\stwo\st_2)\cdot(\sone0_1) \neq \stwo\st_2$. Our assumption \proofref{H1} is thus incorrect -- frame substraction does not hold for \code{swap}
-\end{description}
+We want to proove frame substraction does not hold with action \swap.
+
+From \hyp{pcm} and the definition of $\cdot$ we have $(\sone\st) \cdot (\sone0_1) = \sone\st$. Let $\st$ be such that $\code{is\_exclusively\_owned}~\st=\vtrue$. From \hyp{swap}, this gives us 
+\begin{hypvlist}
+	\hypvitem{eval-framed} $\evalsto{\sone\st \cdot \sone0_1, \swap~[]}{\Ok}{\stwo\st_2, []}$
+	\hypvitem{eval} $\evalsto{\sone\st,\swap~[]}{\Ok}{\stwo\st_2, []}$\end{hypvlist}
+
+To satisfy frame substraction, as the outcome in \hyp{eval} is \Ok, we would need $\stwo\st_2 = \stwo\st_2 \cdot \sone0_1$, which is not the case, as per the definition of $\cdot$, $\stwo\st_2 \cdot \sone0_1$ is undefined.
+
+Frame substraction thus does not hold for \swap.
 \end{proof}
 
 \subsection{Sound Sum}
 
-To define a sound version of sum, we thus need to remove the $0$ element of both sides from the allowed states, resulting in $(\mmdl_1 \oplus \mmdl_2).\Sigma \defeq \code{| }\bot \code{ | S1 } (\mmdl_1.\Sigma~ \backslash \{ 0_1\}) \code{ | S2 } (\mmdl_2.\Sigma~ \backslash \{0_2\})$. This ensure the states $\sone0_1$ and $\stwo0_2$ aren't allowed, avoiding the problem in frame substraction. Additionally, both sides of the sum must also provide a $\code{is\_full\_owned} : \Sigma \rarr \code{bool}$ function, that tests if the state is also part of $\underline\Sigma$.
+To define a sound version of sum, we thus need to remove the $0$ element of both sides from the allowed states, resulting in $(\mmdl_1 \oplus \mmdl_2).\Sigma \defeq \code{| }\bot \code{ | S1 } (\mmdl_1.\Sigma~ \backslash \{ 0_1\}) \code{ | S2 } (\mmdl_2.\Sigma~ \backslash \{0_2\})$. This ensure the states $\sone0_1$ and $\stwo0_2$ aren't allowed, avoiding the problem in frame substraction. 
 
-\begin{proof}$ $\newline
-	\textbf{Given } \begin{description}
-		\proofitem{P1} $\mmdl_1$ is a well formed PCM, $\mmdl_1 \defeq (\Sigma_1, 0_1, \cdot)$
-		\proofitem{P2} $\mmdl_2$ is a well formed PCM, $\mmdl_2 \defeq (\Sigma_2, 0_2, \cdot)$
-		\proofitem{P3} There is an action \code{swap} that accepts no parameters and that, for a state \code{S1 $\st$} or \code{S2 $\st$}, converts it to \code{S2 $\st_2$} or \code{S1 $\st_1$} respectively, with $\st_1$ and $\st_2$ target states of $\mmdl_1$ and $\mmdl_2$. It uses a function ${\code{is\_fully\_owned} : \Sigma\rarr \code{bool}}$ that returns \code{true} if and only if $\st$ is part of $\underline\Sigma$. It is defined as: 
+\begin{proof}
+\pfprop{Sum actions that swap sides are frame preserving}
+
+Assuming 
+\begin{hypvlist}
+\hypvitem{pcm} $\mmdl_1$ is a well formed PCM, $\mmdl_1 \defeq (\Sigma_1, 0_1, \cdot)$
+\hypvitem{pcm2} $\mmdl_2$ is a well formed PCM, $\mmdl_2 \defeq (\Sigma_2, 0_2, \cdot)$
+\hypvitem{swap} There is an action \swap{} that accepts no parameters and that, for a state \code{S1 $\st$} or \code{S2 $\st$}, converts it to \code{S2 $\st_2$} or \code{S1 $\st_1$} respectively, with $\st_1$ and $\st_2$ target states of $\mmdl_1$ and $\mmdl_2$. It uses a function ${\code{is\_exclusively\_owned} : \Sigma\rarr \bools}$ that returns \vtrue{} if and only if no other resource can interfere with the current state. It is defined as: 
+
 \begin{minted}{ocaml}
 let swap !$\st$! =
 	match !$\st$! with
-	| S1 !$\st$! when is_fully_owned !$\st$! -> ok ((), S2 !$\st_2$!)
-	| S2 !$\st$! when is_fully_owned !$\st$! -> ok ((), S1 !$\st_1$!)
+	| S1 !$\st$! when is_exclusively_owned !$\st$! -> ok ((), S2 !$\st_2$!)
+	| S2 !$\st$! when is_exclusively_owned !$\st$! -> ok ((), S1 !$\st_1$!)
 	| _ -> miss (MissingState, !$\st$!)
 \end{minted}
-\end{description}
+\end{hypvlist}
+	
+We aim to prove \newgoal{framesub} frame substraction holds. The definition of the sum state model and of \swap{} lead to 9 cases, with $\sone\st$, $\stwo\st$ or $\bot$ on both sides of the composition.
 
-\textbf{Case $\sone\st$, $\sone\st'$}
+\pfcase{$\sone\st$, $\sone\st'$}
 
-\begin{description}
-	\proofitem{H1} Per definition of sum composition, we have $(\sone\st)\cdot(\sone\st') = \sone(\st\cdot\st')$.
-	\proofitem{H2A} If $\code{is\_fully\_owned } \st\cdot\st' = \code{true}$, then as per \proofref{P3} and \proofref{H1}, ${\evalsto{(\sone\st)\cdot(\sone\st'), \code{swap }[]}{\Ok}{\stwo\st_2,[]}}$
-	\proofitem{H2B} Per the definition of sum, $\sone0_1$ is not allowed, thus per inextensibility of full states if ${\code{is\_fully\_owned }\st\cdot\st' = \code{true}}$ then $\code{is\_fully\_owned }\st=\code{false}$.
-	\proofitem{H2C} Per \proofref{H2B} and \proofref{P3}, we have $\evalsto{\sone\st, \code{swap }[]}{\Miss}{\sone\st, []}$. The outcome is \Miss, thus frame substraction is satisfied.
-	\proofitem{H3A} If $\code{is\_fully\_owned } \st\cdot\st' = \code{false}$, then as per \proofref{P3} and \proofref{H1}, \\$\evalsto{(\sone\st)\cdot(\sone\st'), \code{swap }[]}{\Miss}{(\sone\st)\cdot(\sone\st'),[]}$
-	\proofitem{H3B} Per \proofref{H3A} it must follow that $\code{is\_fully\_owned } \st = \code{false}$
-	\proofitem{H3C} Per \proofref{H3B} and \proofref{P3}, we have $\evalsto{\sone\st, \code{swap }[]}{\Miss}{\sone\st, []}$. The outcome is \Miss, thus frame substraction is satisfied.
-\end{description}
+\begin{hypvlist}
+	\hypvitem{comp-a-a} Per definition of sum composition, we have $(\sone\st)\cdot(\sone\st') = \sone(\st\cdot\st')$.
+	\hypvitem{exowned-t} If $\code{is\_exclusively\_owned}~\st\cdot\st' = \vtrue$, then per its definition, $\code{is\_exclusively\_owned}~\st=\vfalse$.
+	\hypvitem{exowned-f} If $\code{is\_exclusively\_owned}~\st\cdot\st' = \vfalse$, then $\code{is\_exclusively\_owned}~\st = \vfalse$
+	\hypvitem{evals-exowned-f} Per \hyp{exowned-t}, \hyp{exowned-f} and \hyp{swap}, we have $\evalsto{\sone\st, \swap~[]}{\Miss}{\sone\st, []}$. The outcome is \Miss, thus the goal \goal{framesub} satisfied.
+\end{hypvlist}
 
-\textbf{Case $\sone\st$, $\stwo\st'$}
-\begin{description}
-	\proofitem{H1} Per definition of sum composition, $\sone\st \cdot\stwo\st'$ is undefined, $\evalsto{\sone\st \cdot\stwo\st',\code{swap }[]}{o}{\st',v}$ is thus false and frame substraction is satified.
-\end{description}
+\pfcase{$\sone\st$, $\stwo\st'$}
+\begin{hypvlist}
+	\hypvitem{comp-a-b} Per definition of sum composition, $\sone\st \cdot\stwo\st'$ is undefined, $\evalsto{\sone\st \cdot\stwo\st',\swap~[]}{o}{\st',v}$ is thus false and the goal \goal{framesub} is satified.
+\end{hypvlist}
 
-\textbf{Case $\sone\st$, $\bot$}
+\pfcase{$\sone\st$, $\bot$}
 
-\begin{description}
-	\proofitem{H1} Per definition of sum composition, $\sone\st \cdot \bot = \sone\st$
-	\proofitem{H2} Per \proofref{H1}, $\evalsto{\sone\st\cdot\bot,\code{swap }[]}{o}{\st',v} \iff \evalsto{\sone\st,\code{swap }[]}{o}{\st',v}$, frame substraction is satisfied.
-\end{description}
+\begin{hypvlist}
+	\hypvitem{comp-a-bot} Per definition of sum composition, $\sone\st \cdot \bot = \sone\st$
+	\hypvitem{equiv-swap} Per \hyp{comp-a-bot} and \hyp{swap}, $\evalsto{\sone\st\cdot\bot,\swap~[]}{o}{\st',v} \iff \evalsto{\sone\st,\swap~[]}{o}{\st',v}$, satisfying the goal \goal{framesub}.
+\end{hypvlist}
 
-\textbf{Cases $\stwo\st$ and $\sone\st'$, $\stwo\st'$, $\bot$}
-\begin{description}
-	\item These cases can be proven analogously to the previous ones.
-\end{description}
+\pfcase{$\stwo\st$ and $\sone\st'$, $\stwo\st'$ or $\bot$}
+These cases are analogous to the $\sone\st$ and $\stwo\st'$, $\sone\st'$ or $\bot$ cases respectively.
 
-\textbf{Cases $\bot$ and $\st$}
+\pfcase{$\bot$ and $\sone\st'$, $\stwo\st'$ or $\bot$}
 
-\begin{description}
-	\proofitem{H1} Per definition of sum composition, $\bot\cdot\st=\st$, which is always defined.
-	\proofitem{H2} Per \proofref{P3}, $\evalsto{\bot, \code{swap }[]}{\Miss}{\bot, v}$
-	\proofitem{H3} Per \proofref{H1} and \proofref{H2}, frame substraction is thus satisfied.
-\end{description}
+\begin{hypvlist}
+	\hypvitem{comp-bot} Per definition of sum composition, $\bot\cdot\st=\st$, which is always defined.
+	\hypvitem{eval-bot} Per \hyp{swap}, $\evalsto{\bot, \swap~[]}{\Miss}{\bot, v}$
+	\hypvitem{evals-bot} Per \hyp{comp-bot} and \hyp{eval-bot}, the goal \goal{framesub} is satisfied.
+\end{hypvlist}
 
 \end{proof}
 
