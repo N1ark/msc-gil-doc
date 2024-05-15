@@ -13,7 +13,8 @@
 	fontsize=\small,
 	baselinestretch=1,
 	mathescape=true,
-	escapeinside=!!
+	escapeinside=!!,
+	tabsize=4
 }
 
 
@@ -320,10 +321,7 @@ As such, we would expect $\code{produce}~\code{S1}~\bot_A~\delta_B~\ins~\outs = 
 \begin{align*}
 	\code{produce}~(\code{S1}~\bot_A)~\delta_B~\ins~\outs
 	&=\{\code{S1}~\bot_A\cdot\code{S2}~\sigma_{\delta_B}~|~\sigma_{\delta_B}\vDash\corepred{$\delta$}{\ins}{\outs},\bot_A\#\sigma_{\delta_B}\}&\text{from core predicates producers rule}\\
-	&=\emptyset &\text{as }\code{S1}~\sigma_A\cdot\code{S2}~\sigma_B\text{ is undefined}\\~\\
-	~
-	\nexists \delta.~\code{produce}~\sigma~\delta~\ins~\outs\not\subseteq \{\sigma\}\\
-	\text{ie. }\forall \delta.~\code{produce}~\sigma~\delta~\ins~\outs\subset\{\sigma\}
+	&=\emptyset &\text{as }\code{S1}~\sigma_A\cdot\code{S2}~\sigma_B\text{ is undefined}
 \end{align*}
 
 For the result of \code{produce} to match what's expected, new rules would need to be added to composition and produce to handle \code{S1~$\bot_A$} in the same way it handles $\bot_\oplus$. However there currently is no way of doing this, as the existence of an empty element in $A$ or $B$ is not exposed -- while some state models (like Exc) may have one, others (like Ag) may not.
@@ -363,20 +361,20 @@ A state sum $\mathbb S_1 \oplus \mathbb S_2$ is now defined as \code{type $\Sigm
 
 \begin{minted}{ocaml}
 produce !$\sigma^?$! !$\delta$! !$\ins$! !$\outs$! =
-    match !$\sigma^?$!, !$\delta$! with
-    | S1 !$\sigma_1$!, P1 !$\delta_1$! -> 
-        let* !$\delta_1'$! = produce !$\sigma_1$! !$\delta_1$! !$\ins$! !$\outs$! in
-        S1 !$\delta_1'$!
-    | !$\bot$!, P1 !$\delta_1$! ->
-    	let* !$\delta_1'$! = produce !$\mmdl_1.0$! !$\delta_1$! !$\ins$! !$\outs$! in
-        S1 !$\delta_1'$!
-    | S2 !$\sigma_2$!, P2 !$\delta_2$! -> 
-        let* !$\delta_2'$! = produce !$\sigma_2$! !$\delta_2$! !$\ins$! !$\outs$! in
-        S2 !$\delta_2'$!
-    | !$\bot$!, P2 !$\delta_2$! -> 
-        let* !$\delta_2'$! = produce !$\mmdl_2.0$! !$\delta_2$! !$\ins$! !$\outs$! in
-        S2 !$\delta_2'$!
-    | _, _ -> vanish
+	match !$\sigma^?$!, !$\delta$! with
+	| S1 !$\sigma_1$!, P1 !$\delta_1$! -> 
+		let* !$\delta_1'$! = produce !$\sigma_1$! !$\delta_1$! !$\ins$! !$\outs$! in
+		S1 !$\delta_1'$!
+	| !$\bot$!, P1 !$\delta_1$! ->
+		let* !$\delta_1'$! = produce !$\mmdl_1.0$! !$\delta_1$! !$\ins$! !$\outs$! in
+		S1 !$\delta_1'$!
+	| S2 !$\sigma_2$!, P2 !$\delta_2$! -> 
+		let* !$\delta_2'$! = produce !$\sigma_2$! !$\delta_2$! !$\ins$! !$\outs$! in
+		S2 !$\delta_2'$!
+	| !$\bot$!, P2 !$\delta_2$! -> 
+		let* !$\delta_2'$! = produce !$\mmdl_2.0$! !$\delta_2$! !$\ins$! !$\outs$! in
+		S2 !$\delta_2'$!
+	| _, _ -> vanish
 \end{minted}
 
 
